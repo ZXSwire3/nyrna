@@ -58,6 +58,23 @@ Please make sure to **save** your data or game before attempting to use Nyrna.
 
 View install options on the [website](https://nyrna.merritt.codes/download).
 
+## CLI usage
+
+Run Nyrna without arguments to launch the GUI.
+
+Headless CLI options:
+
+- `--toggle` / `-t`: Suspend or resume the active window.
+- `--suspend <app>`: Suspend GUI process(es) matching executable name or window title.
+- `--unsuspend <app>`: Resume GUI process(es) matching executable name or window title.
+- `--status <app>`: Print status for matching GUI process(es).
+- `--list-suspended`: Print all actively suspended GUI processes.
+- `--list-gui`: Print all detected GUI processes.
+
+CLI output is tab-separated in this format:
+
+`PID<TAB>EXECUTABLE<TAB>STATUS<TAB>TITLE`
+
 ## FAQ
 
 **Can I suspend to disk so that I can restore after reboot / free up RAM usage / etc?**

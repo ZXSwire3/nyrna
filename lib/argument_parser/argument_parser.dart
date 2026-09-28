@@ -18,15 +18,42 @@ class ArgumentParser {
   bool? minimize;
   bool toggleActiveWindow = false;
   bool verbose = false;
+  String? suspendApp;
+  String? unsuspendApp;
+  String? appStatus;
+  bool listSuspendedApps = false;
+  bool listGuiProcesses = false;
+
+  final void Function(int) _exitFunction;
+  final void Function(Object?) _printLine;
 
   /// Singleton instance.
   static late ArgumentParser instance;
 
-  ArgumentParser() {
+  ArgumentParser({
+    void Function(int)? exitFunction,
+    void Function(Object?)? printLine,
+  }) : _exitFunction = exitFunction ?? exit,
+       _printLine = printLine ?? stdout.writeln {
     instance = this;
   }
 
   final _parser = ArgParser(usageLineLength: 80);
+
+  bool get hasCliAction =>
+      toggleActiveWindow ||
+      suspendApp != null ||
+      unsuspendApp != null ||
+      appStatus != null ||
+      listSuspendedApps ||
+      listGuiProcesses;
+
+  bool get hasExtendedCliAction =>
+      suspendApp != null ||
+      unsuspendApp != null ||
+      appStatus != null ||
+      listSuspendedApps ||
+      listGuiProcesses;
 
   /// Parse received arguments.
   void parseArgs(List<String> args) {
@@ -64,19 +91,70 @@ Used with the `toggle` flag, `no-minimize` instructs Nyrna not to automatically 
         negatable: false,
         callback: (bool value) => verbose = value,
         help: 'Output verbose logs for troubleshooting and debugging.',
+      )
+      ..addOption(
+        'suspend',
+        valueHelp: 'app',
+        callback: (value) => suspendApp = value,
+        help:
+            'Suspend GUI process(es) matching this executable or window title.',
+      )
+      ..addOption(
+        'unsuspend',
+        valueHelp: 'app',
+        callback: (value) => unsuspendApp = value,
+        help:
+            'Resume GUI process(es) matching this executable or window title.',
+      )
+      ..addOption(
+        'status',
+        valueHelp: 'app',
+        callback: (value) => appStatus = value,
+        help:
+            'Show suspend status of GUI process(es) matching this executable or window title.',
+      )
+      ..addFlag(
+        'list-suspended',
+        negatable: false,
+        callback: (value) => listSuspendedApps = value,
+        help: 'Show all actively suspended GUI processes.',
+      )
+      ..addFlag(
+        'list-gui',
+        negatable: false,
+        callback: (value) => listGuiProcesses = value,
+        help: 'Show all detected GUI processes.',
       );
 
     final helpText = '$_helpTextGreeting${_parser.usage}\n\n';
 
     try {
       final result = _parser.parse(args);
+
+      final actionCount = [
+        toggleActiveWindow,
+        suspendApp != null,
+        unsuspendApp != null,
+        appStatus != null,
+        listSuspendedApps,
+        listGuiProcesses,
+      ].where((e) => e).length;
+
+      final noMinimizeWithoutToggle =
+          result.wasParsed('minimize') && !toggleActiveWindow;
+
+      if (actionCount > 1 || noMinimizeWithoutToggle) {
+        _printLine(helpText);
+        _exitFunction(0);
+      }
+
       if (result.rest.isNotEmpty) {
-        stdout.writeln(helpText);
-        exit(0);
+        _printLine(helpText);
+        _exitFunction(0);
       }
     } on ArgParserException {
-      stdout.writeln(helpText);
-      exit(0);
+      _printLine(helpText);
+      _exitFunction(0);
     }
   }
 }

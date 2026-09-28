@@ -15,6 +15,7 @@ import 'app_version/app_version.dart';
 import 'apps_list/apps_list.dart';
 import 'argument_parser/argument_parser.dart';
 import 'autostart/autostart_service.dart';
+import 'cli/cli_action_runner.dart';
 import 'hotkey/global/hotkey_service.dart';
 import 'loading/loading.dart';
 import 'logs/logs.dart';
@@ -54,6 +55,19 @@ Future<void> main(List<String> args) async {
   final nativePlatform = await NativePlatform.initialize();
   final processRepository = ProcessRepository.init();
 
+  if (argParser.hasExtendedCliAction) {
+    final cliActionRunner = CliActionRunner(
+      nativePlatform: nativePlatform,
+      processRepository: processRepository,
+    );
+    final exitCode = await cliActionRunner.run(argParser);
+    await _exitHeadless(
+      nativePlatform: nativePlatform,
+      storage: storage,
+    );
+    exit(exitCode);
+  }
+
   final appWindow = AppWindow(storage);
   if (!argParser.toggleActiveWindow) {
     await appWindow.initialize();
@@ -72,18 +86,10 @@ Future<void> main(List<String> args) async {
     await nativePlatform.checkActiveWindow();
     await activeWindow.toggle();
 
-    // On Windows the program stays running in the background, so we don't want
-    // to close these resources.
-    if (defaultTargetPlatform == TargetPlatform.linux) {
-      await nativePlatform.dispose();
-      await storage.close();
-      LoggingManager.instance.close();
-    }
-
-    // Add a slight delay, because Logger doesn't await closing its file output.
-    // This will hopefully ensure the log file gets fully written.
-    await Future.delayed(const Duration(milliseconds: 500));
-
+    await _exitHeadless(
+      nativePlatform: nativePlatform,
+      storage: storage,
+    );
     exit(0);
   } else {}
 
@@ -142,4 +148,21 @@ Future<void> main(List<String> args) async {
       ),
     ),
   );
+}
+
+Future<void> _exitHeadless({
+  required NativePlatform nativePlatform,
+  required StorageRepository storage,
+}) async {
+  // On Windows the program stays running in the background, so we don't want
+  // to close these resources.
+  if (defaultTargetPlatform == TargetPlatform.linux) {
+    await nativePlatform.dispose();
+    await storage.close();
+    LoggingManager.instance.close();
+  }
+
+  // Add a slight delay, because Logger doesn't await closing its file output.
+  // This will hopefully ensure the log file gets fully written.
+  await Future.delayed(const Duration(milliseconds: 500));
 }
